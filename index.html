@@ -1,0 +1,467 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hệ thống đánh giá, xếp loại chất lượng viên chức</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- CSS import -->
+    <link rel="stylesheet" href="./style.css">
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-storage-compat.js"></script>
+<!-- Bỏ các module không dùng để tránh lỗi -->
+</head>
+<body>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;margin:0;color:#222}
+  header{background:#1976d2;color:#fff;display:flex;align-items:center;gap:12px;padding:12px 20px}
+  header img{height:60px;width:60px;border-radius:8px;object-fit:cover}
+  .container{max-width:1100px;margin:20px auto;padding:0 16px}
+  .card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-bottom:16px}
+  h1,h2{margin:0} h2{color:#1976d2}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .col{flex:1;min-width:200px}
+  input,select,button,textarea{padding:8px;border-radius:6px;border:1px solid #d1d5db;width:100%}
+  button{background:#1976d2;color:#fff;border:none;cursor:pointer}
+  .muted{color:#6b7280;font-size:0.95rem}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .task-card{background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+  .task-title{font-weight:600;margin-bottom:6px}
+  .progress{height:12px;background:#eee;border-radius:8px;overflow:hidden;margin-top:6px}
+  .progress > div{height:100%;background:#1976d2}
+  .status-red{border-left:6px solid #ef4444}
+  .status-yellow{border-left:6px solid #f59e0b}
+  .status-green{border-left:6px solid #16a34a}
+  footer{background:#1976d2;color:#fff;padding:12px;text-align:center;margin-top:18px}
+  .charts{display:flex;flex-direction:column;gap:12px}
+  @media(min-width:900px){ .charts{flex-direction:row} .charts .chart{flex:1} }
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="logo">
+  <div>
+    <div style="font-weight:700" Hệ thống đánh giá, xếp loại chất lượng viên chức</div>
+    <nav>
+      <a href="#sectionHome">Trang chủ</a>
+      <a href="#sectionDanhGia">Đánh giá</a>
+      <a href="#sectionKetQua">Xem kết quả</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Trang chủ -->
+  <div id="sectionHome" class="card">
+    <h2>Trang chủ</h2>
+    <p>Chào mừng đến với hệ thống đánh giá viên chức.</p>
+  </div>
+  <div class="container" id="mainContainer">
+  <!-- Nội dung sẽ render từ app.js -->
+</div>
+  <!-- Form đánh giá -->
+  <div id="sectionDanhGia">
+    <!-- Demo login + role -->
+    <div class="card" id="loginCard">
+      <h2>Đăng nhập demo (Chọn vai trò)</h2>
+      <div class="row">
+        <div class="col"><label>Vai trò</label>
+          <select id="roleSelect">
+            <option value="vienChuc">Viên chức</option>
+            <option value="quanLy">Quản lý trực tiếp</option>
+            <option value="hoiDong">Hội đồng thi đua</option>
+          </select>
+        </div>
+        <div class="col"><label>Chọn viên chức</label>
+          <select id="loginStaff"></select>
+        </div>
+        <div class="col"><button id="btnLogin">Đăng nhập</button></div>
+      </div>
+    </div>
+
+    <!-- Tu đánh giá -->
+    <div class="card" id="formTuDG" style="display:none"></div>
+
+    <!-- Quan ly đánh giá -->
+    <div class="card" id="formQuanLy" style="display:none"></div>
+
+    <!-- Hoi dong -->
+    <div class="card" id="formHoiDong" style="display:none"></div>
+  </div>
+
+  <!-- Xem kết quả -->
+  <div id="sectionKetQua">
+    <div class="card">
+      <h2>Dashboard</h2>
+      <canvas id="barChart"></canvas>
+      <canvas id="pieChart"></canvas>
+    </div>
+    <div class="card">
+      <h2>Danh sách kết quả đánh giá</h2>
+      <div id="cards" class="card-grid"></div>
+    </div>
+  </div>
+
+</div>
+<div class="container">
+  <!-- role/login demo -->
+  <div class="card">
+    <h2>Đăng nhập demo (Chọn vai trò)</h2>
+    <div class="row">
+      <div style="min-width:240px">
+        <label class="muted">Vai trò</label>
+        <select id="roleSelect">
+          <option value="vienChuc">Viên chức</option>
+          <option value="quanLy">Quản lý trực tiếp</option>
+          <option value="hoiDong">Hội đồng thi đua</option>
+        </select>
+      </div>
+      <div style="min-width:320px">
+        <label class="muted">Chọn viên chức (login demo)</label>
+        <select id="loginStaff"></select>
+      </div>
+      <div style="min-width:160px;align-self:flex-end">
+        <button id="btnLogin">Đăng nhập</button>
+      </div>
+    </div>
+    <div class="muted" style="margin-top:8px">Lưu ý: Đây là chế độ demo. Vai trò chỉ điều khiển giao diện, không phải xác thực thật.</div>
+  </div>
+
+  <!-- tu danh gia (viên chức) -->
+  <div id="formTuDG" class="card" style="display:none">
+    <h2>Tự đánh giá (Viên chức)</h2>
+    <div class="row">
+      <div class="col"><label class="muted">Phòng</label><select id="tdgPhong"></select></div>
+      <div class="col"><label class="muted">Tên viên chức</label><select id="tdgStaff"></select></div>
+      <div class="col"><label class="muted">Tiêu chí 1 (0-100)</label><input id="tdgCrit1" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Tiêu chí 2 (0-100)</label><input id="tdgCrit2" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Tiêu chí 3 (0-100)</label><input id="tdgCrit3" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Tiêu chí 4 (0-100)</label><input id="tdgCrit3" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Tiêu chí 5 (0-100)</label><input id="tdgCrit3" type="number" min="0" max="100" value="0"></div>
+      <div style="min-width:220px"><label class="muted">File minh chứng</label><input id="tdgFile" type="file"></div>
+      <div style="width:160px;align-self:flex-end"><button id="btnSubmitTuDG">Gửi đánh giá</button></div>
+    </div>
+    <div class="muted" style="margin-top:8px">Bạn có thể sửa hoặc xóa bản tự đánh giá trước khi quản lý duyệt.</div>
+  </div>
+  <!-- Hiển thị dữ liệu -->
+  <ul id="vienChucList"></ul>
+
+
+  <!-- quan ly form -->
+  <div id="formQuanLy" class="card" style="display:none">
+    <h2>Đánh giá của Quản lý trực tiếp</h2>
+    <div class="row">
+      <div class="col"><label class="muted">Chọn phòng</label><select id="qlPhong"></select></div>
+      <div class="col"><label class="muted">Chọn viên chức</label><select id="qlStaff"></select></div>
+      <div class="col"><label class="muted">Điểm quản lý (0-100)</label><input id="qlPoint" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Nhận xét</label><textarea id="qlNote" rows="2"></textarea></div>
+      <div style="width:160px;align-self:flex-end"><button id="btnSubmitQL">Cập nhật đánh giá quản lý</button></div>
+    </div>
+  </div>
+
+  <!-- hoi dong form -->
+  <div id="formHoiDong" class="card" style="display:none">
+    <h2>Hội đồng thi đua - Tổng kết & Xếp loại</h2>
+    <div class="row">
+      <div class="col"><label class="muted">Chọn viên chức</label><select id="hdStaff"></select></div>
+      <div class="col"><label class="muted">Điểm hội đồng (0-100)</label><input id="hdPoint" type="number" min="0" max="100" value="0"></div>
+      <div class="col"><label class="muted">Xếp loại</label><select id="hdRank"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
+      <div style="width:160px;align-self:flex-end"><button id="btnSubmitHD">Lưu kết quả hội đồng</button></div>
+    </div>
+  </div>
+
+  <!-- dashboard & charts -->
+  <div class="card">
+    <h2>Dashboard tổng hợp</h2>
+    <div class="row">
+      <div style="min-width:200px"><label class="muted">Lọc phòng</label><select id="filterDept"><option value="">Tất cả</option></select></div>
+      <div style="min-width:200px"><label class="muted">Lọc viên chức</label><select id="filterStaff"><option value="">Tất cả</option></select></div>
+      <div style="margin-left:auto"><button id="btnRefresh">Làm mới</button></div>
+    </div>
+
+    <div class="charts" style="margin-top:12px">
+      <div class="chart"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="charts" style="margin-top:12px">
+      <div class="chart"><canvas id="pieChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- cards list -->
+  <div class="card">
+    <h2>Danh sách kết quả đánh giá</h2>
+    <div id="cards" class="card-grid"></div>
+  </div>
+
+</div>
+
+<footer>© Trung tâm Y tế khu vực Bảo Lâm 2025</footer>
+
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDj8pL0mo2dB_yVrxtfQ0DoKdG80AZdwIA",
+  authDomain: "danh-gia-3d2e4.firebaseapp.com",
+  projectId: "danh-gia-3d2e4",
+  storageBucket: "danh-gia-3d2e4.firebasestorage.app",
+  messagingSenderId: "264661635391",
+  appId: "1:264661635391:web:45374d8d36767c0f39438a",
+  measurementId: "G-TX0B4TLPP5"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+(function(){
+  // Demo / in-memory data structures
+  const staffMap = new Map(); // id -> {ten, phong}
+  let tuDanhGia = []; // {id, vienChucId, crit1,crit2,crit3, fileURL, createdAt}
+  let quanLyDanhGia = []; // {id, vienChucId, point, note, createdAt}
+  let hoiDongDanhGia = []; // {id, vienChucId, point, rank, createdAt}
+
+  // sample fake staff + data to show immediately
+  const fakeStaff = [
+    { id:'s1', ten:'Nguyễn Văn A', phong:'KH-NV' },
+    { id:'s2', ten:'Trần Thị B', phong:'Hành chính' },
+    { id:'s3', ten:'Lê Văn C', phong:'Kế toán' }
+  ];
+  fakeStaff.forEach(s=> staffMap.set(s.id, {ten:s.ten, phong:s.phong}));
+
+  // helper DOM refs
+  const roleSelect = document.getElementById('roleSelect');
+  const loginStaff = document.getElementById('loginStaff');
+  const btnLogin = document.getElementById('btnLogin');
+
+  const formTu = document.getElementById('formTuDG');
+  const tdgPhong = document.getElementById('tdgPhong');
+  const tdgStaff = document.getElementById('tdgStaff');
+  const tdgCrit1 = document.getElementById('tdgCrit1');
+  const tdgCrit2 = document.getElementById('tdgCrit2');
+  const tdgCrit3 = document.getElementById('tdgCrit3');
+  const tdgFile = document.getElementById('tdgFile');
+  const btnSubmitTuDG = document.getElementById('btnSubmitTuDG');
+
+  const formQL = document.getElementById('formQuanLy');
+  const qlPhong = document.getElementById('qlPhong');
+  const qlStaff = document.getElementById('qlStaff');
+  const qlPoint = document.getElementById('qlPoint');
+  const qlNote = document.getElementById('qlNote');
+  const btnSubmitQL = document.getElementById('btnSubmitQL');
+
+  const formHD = document.getElementById('formHoiDong');
+  const hdStaff = document.getElementById('hdStaff');
+  const hdPoint = document.getElementById('hdPoint');
+  const hdRank = document.getElementById('hdRank');
+  const btnSubmitHD = document.getElementById('btnSubmitHD');
+
+  const filterDept = document.getElementById('filterDept');
+  const filterStaff = document.getElementById('filterStaff');
+  const btnRefresh = document.getElementById('btnRefresh');
+  const cards = document.getElementById('cards');
+
+  const barCtx = document.getElementById('barChart').getContext('2d');
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  let barChart=null, pieChart=null;
+
+  // populate staff selects
+  function refreshStaffSelects(){
+    loginStaff.innerHTML='';
+    tdgStaff.innerHTML=''; tdgPhong.innerHTML=''; tdgPhong.innerHTML='<option value="">--Chọn--</option>';
+    qlStaff.innerHTML=''; qlPhong.innerHTML=''; qlPhong.innerHTML='<option value="">--Chọn--</option>';
+    hdStaff.innerHTML='';
+    filterStaff.innerHTML='<option value="">Tất cả</option>'; filterDept.innerHTML='<option value="">Tất cả</option>';
+    staffMap.forEach((s,id)=>{
+      const opt = document.createElement('option'); opt.value=id; opt.textContent = s.ten + ' — ' + s.phong;
+      loginStaff.appendChild(opt);
+      const opt2 = opt.cloneNode(true); tdgStaff.appendChild(opt2);
+      const opt3 = opt.cloneNode(true); qlStaff.appendChild(opt3);
+      const opt4 = opt.cloneNode(true); hdStaff.appendChild(opt4);
+      const opt5 = opt.cloneNode(true); filterStaff.appendChild(opt5);
+    });
+    // depts
+    const depts = new Set(); staffMap.forEach(s=>depts.add(s.phong));
+    depts.forEach(d=>{
+      const o = document.createElement('option'); o.value=d; o.textContent=d;
+      tdgPhong.appendChild(o);
+      const o2=o.cloneNode(true); qlPhong.appendChild(o2);
+      const o3=o.cloneNode(true); filterDept.appendChild(o3);
+    });
+  }
+
+  refreshStaffSelects();
+
+  // fake initial sample evaluations
+  tuDanhGia = [
+    {id:'td1', vienChucId:'s1', crit1:70, crit2:60, crit3:50, fileURL:'', createdAt:'2025-10-01'},
+    {id:'td2', vienChucId:'s2', crit1:90, crit2:85, crit3:80, fileURL:'', createdAt:'2025-10-02'}
+  ];
+  quanLyDanhGia = [
+    {id:'ql1', vienChucId:'s1', point:65, note:'Cần hoàn thiện báo cáo', createdAt:'2025-10-05'}
+  ];
+  hoiDongDanhGia = [
+    {id:'hd1', vienChucId:'s2', point:88, rank:'A', createdAt:'2025-10-10'}
+  ];
+
+  // role UI toggle
+  function showRoleUI(role){
+    formTu.style.display = role==='vienChuc' ? 'block' : 'none';
+    formQL.style.display = role==='quanLy' ? 'block' : 'none';
+    formHD.style.display = role==='hoiDong' ? 'block' : 'none';
+  }
+
+  btnLogin.addEventListener('click', ()=>{
+    const role = roleSelect.value;
+    const staffId = loginStaff.value;
+    if (!staffId) return alert('Chọn viên chức để demo login');
+    // set selected staff in each select for convenience
+    tdgStaff.value = staffId; qlStaff.value = staffId; hdStaff.value = staffId;
+    showRoleUI(role);
+    alert('Bạn đã đăng nhập demo với vai trò: ' + (role==='vienChuc'?'Viên chức':role==='quanLy'?'Quản lý':'Hội đồng'));
+  });
+
+  // submit tự đánh giá (viên chức)
+  btnSubmitTuDG.addEventListener('click', async ()=>{
+    const vid = tdgStaff.value; if (!vid) return alert('Chọn viên chức');
+    const c1 = Number(tdgCrit1.value||0), c2 = Number(tdgCrit2.value||0), c3 = Number(tdgCrit3.value||0);
+    const file = tdgFile.files[0];
+    let fileURL='';
+    if (file){
+      try { /* upload skipped in demo mode */ } catch(e){ console.warn('Upload skipped in demo', e); }
+    }
+    const rec = {id:'td'+Math.random().toString(36).slice(2,7), vienChucId:vid, crit1:c1, crit2:c2, crit3:c3, fileURL, createdAt:(new Date()).toISOString()};
+    tuDanhGia.push(rec);
+    renderCards();
+    alert('Gửi tự đánh giá thành công (demo)');
+  });
+
+  // submit quan ly
+  btnSubmitQL.addEventListener('click', async ()=>{
+    const vid = qlStaff.value; if (!vid) return alert('Chọn viên chức');
+    const point = Number(qlPoint.value||0); const note = qlNote.value||'';
+    const rec = {id:'ql'+Math.random().toString(36).slice(2,7), vienChucId:vid, point, note, createdAt:(new Date()).toISOString()};
+    quanLyDanhGia.push(rec);
+    renderCards();
+    alert('Cập nhật đánh giá quản lý thành công (demo)');
+  });
+
+  // submit hoi dong
+  btnSubmitHD.addEventListener('click', async ()=>{
+    const vid = hdStaff.value; if (!vid) return alert('Chọn viên chức');
+    const point = Number(hdPoint.value||0); const rank = hdRank.value;
+    const rec = {id:'hd'+Math.random().toString(36).slice(2,7), vienChucId:vid, point, rank, createdAt:(new Date()).toISOString()};
+    hoiDongDanhGia.push(rec);
+    renderCards();
+    alert('Lưu kết quả hội đồng thành công (demo)');
+  });
+
+  // compute aggregated score for a staff
+  function computeScoresFor(vienChucId){
+    const tu = tuDanhGia.filter(t=>t.vienChucId===vienChucId).slice(-1)[0] || null;
+    const ql = quanLyDanhGia.filter(q=>q.vienChucId===vienChucId).slice(-1)[0] || null;
+    const hd = hoiDongDanhGia.filter(h=>h.vienChucId===vienChucId).slice(-1)[0] || null;
+    const tuAvg = tu ? Math.round(((tu.crit1||0)+(tu.crit2||0)+(tu.crit3||0))/3) : null;
+    const qlPoint = ql ? ql.point : null;
+    const hdPoint = hd ? hd.point : null;
+    const arr = [];
+    if (tuAvg!==null) arr.push(tuAvg);
+    if (qlPoint!==null) arr.push(qlPoint);
+    if (hdPoint!==null) arr.push(hdPoint);
+    const finalAvg = arr.length? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+    const rank = hd ? hd.rank : (finalAvg>=100?'Hoàn thành xuất sắc nhiệm vụ':finalAvg>=80?'Hoàn thành tốt nhiệm vụ':finalAvg>=60?'Hoàn thành nhiệm vụ':'Không hoàn thành nhiệm vụ');
+    return {tu, ql, hd, tuAvg, qlPoint, hdPoint, finalAvg, rank};
+  }
+
+  // render cards list and charts
+  function renderCards(){
+    cards.innerHTML='';
+    const filterD = filterDept.value;
+    const filterS = filterStaff.value;
+    const ids = Array.from(staffMap.keys());
+    ids.forEach(id=>{
+      const s = staffMap.get(id);
+      if (filterD && s.phong!==filterD) return;
+      if (filterS && id!==filterS) return;
+      const sc = computeScoresFor(id);
+      const card = document.createElement('div');
+      card.className = 'task-card ' + (sc.finalAvg===null? '': (sc.finalAvg<50?'status-red': sc.finalAvg>=80?'status-green':'status-yellow'));
+      card.innerHTML = `
+        <div class="task-title">${s.ten}</div>
+        <div class="muted">${s.phong}</div>
+        <div style="margin-top:8px">Tự đánh giá: ${sc.tuAvg!==null?sc.tuAvg+'': '—'}</div>
+        <div>Quản lý: ${sc.qlPoint!==null?sc.qlPoint+'': '—'}</div>
+        <div>Hội đồng: ${sc.hdPoint!==null?sc.hdPoint+'': '—'}</div>
+        <div style="margin-top:8px;font-weight:600">Kết quả: ${sc.finalAvg!==null?sc.finalAvg+'': '—'} — ${sc.rank||'—'}</div>
+      `;
+      cards.appendChild(card);
+    });
+    updateCharts();
+  }
+
+  // update charts
+  function updateCharts(){
+    const byDept = {};
+    const rankCount = {A:0,B:0,C:0,D:0, unknown:0};
+    staffMap.forEach((s,id)=>{
+      const sc = computeScoresFor(id);
+      if (!byDept[s.phong]) byDept[s.phong]=[];
+      if (sc.finalAvg!==null) byDept[s.phong].push(sc.finalAvg);
+      const r = sc.rank || 'unknown'; rankCount[r] = (rankCount[r]||0)+1;
+    });
+    const labels = Object.keys(byDept);
+    const avgs = labels.map(l=> Math.round((byDept[l].reduce((a,b)=>a+b,0)/byDept[l].length)||0));
+    if (barChart) barChart.destroy();
+    barChart = new Chart(barCtx, {type:'bar', data:{labels, datasets:[{label:'Điểm TB theo phòng', data:avgs, backgroundColor:'#1976d2'}]}, options:{responsive:true, scales:{y:{beginAtZero:true, max:100}}}});
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(pieCtx, {type:'pie', data:{labels:['A','B','C','D'], datasets:[{data:[rankCount.A, rankCount.B, rankCount.C, rankCount.D], backgroundColor:['#16a34a','#60a5fa','#f59e0b','#ef4444']}]}});
+  }
+
+  // wire filters
+  filterDept.addEventListener('change', renderCards);
+  filterStaff.addEventListener('change', renderCards);
+  btnRefresh.addEventListener('click', renderCards);
+
+  // initial render
+  renderCards();
+  // Khởi tạo Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Form submit
+  const form = document.getElementById('vienChucForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const score = parseFloat(document.getElementById('score').value);
+
+    // Thêm vào Firestore
+    try {
+      await db.collection('vienChuc').add({ name, score });
+      alert('Lưu dữ liệu thành công!');
+      form.reset();
+      loadData();
+    } catch (err) {
+      alert('Lỗi lưu dữ liệu: ' + err.message);
+    }
+  });
+
+  // Hiển thị dữ liệu
+  async function loadData() {
+    const list = document.getElementById('vienChucList');
+    list.innerHTML = '';
+    const snapshot = await db.collection('vienChuc').get();
+    snapshot.forEach(doc => {
+      const li = document.createElement('li');
+      li.textContent = `${doc.data().name} - ${doc.data().score}`;
+      list.appendChild(li);
+    };
+
+})(); // end IIFE
+<footer>© Trung tâm Y tế khu vực Bảo Lâm 2025</footer>
+
+ loadData()
+<script src="menu.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

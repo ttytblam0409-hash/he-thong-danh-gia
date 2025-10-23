@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+﻿<<<<<<< HEAD
 ﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -6,6 +6,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Hệ thống đánh giá, xếp loại chất lượng viên chức</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div id="login-screen">
+  <h2>Đăng nhập</h2>
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Mật khẩu" />
+  <button onclick="login()">Đăng nhập</button>
+  <p id="login-error" style="color:red;"></p>
+</div>
+
+<div id="app" style="display:none;">
+  <!-- Nội dung site hiện tại -->
+</div>
+
   <!-- CSS import -->
     <link rel="stylesheet" href="./style.css">
 <!-- Firebase SDKs -->
@@ -212,6 +224,10 @@ const firebaseConfig = {
   appId: "1:264661635391:web:45374d8d36767c0f39438a",
   measurementId: "G-TX0B4TLPP5"
 };
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/auth.js"></script>
 
 firebase.initializeApp(firebaseConfig);
 

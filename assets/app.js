@@ -73,3 +73,12 @@ async function loadChart(){
 
 // Load chart lần đầu
 loadChart();
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    // Người dùng đã đăng nhập, hiển thị nội dung site
+    document.getElementById('app').style.display = 'block';
+  } else {
+    // Người dùng chưa đăng nhập, hiển thị màn hình login
+    document.getElementById('login-screen').style.display = 'block';
+  }
+});
